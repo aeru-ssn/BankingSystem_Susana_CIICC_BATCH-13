@@ -1,0 +1,232 @@
+﻿@startuml class_diagram
+title BankingSystem — Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam classBackgroundColor #FAFAFA
+skinparam classBorderColor #555555
+skinparam arrowColor #333333
+skinparam packageBackgroundColor #EEF4FF
+skinparam packageBorderColor #7799CC
+skinparam stereotypeCBackgroundColor #D0E8FF
+skinparam stereotypeIBackgroundColor #D8F0D8
+skinparam stereotypeEBackgroundColor #FFE8D0
+skinparam linetype ortho
+
+'─────────────────────────────────────
+' MODELS
+'─────────────────────────────────────
+package "org.example.model" {
+    class Account {
+        - Long id
+        - String accountNumber
+        - String accountName
+        - BigDecimal balance
+        - LocalDateTime createdAt
+        + getId() : Long
+        + getAccountNumber() : String
+        + getAccountName() : String
+        + getBalance() : BigDecimal
+        + getCreatedAt() : LocalDateTime
+        + setId(Long) : void
+        + setAccountNumber(String) : void
+        + setAccountName(String) : void
+        + setBalance(BigDecimal) : void
+        + setCreatedAt(LocalDateTime) : void
+    }
+
+    class Transaction {
+        - Long id
+        - String transactionReference
+        - Long accountId
+        - String transactionType
+        - BigDecimal amount
+        - BigDecimal balance
+        - Long referenceAccountId
+        - LocalDateTime createdAt
+        + getId() : Long
+        + getTransactionReference() : String
+        + getAccountId() : Long
+        + getTransactionType() : String
+        + getAmount() : BigDecimal
+        + getBalance() : BigDecimal
+        + getReferenceAccountId() : Long
+        + getCreatedAt() : LocalDateTime
+    }
+}
+
+'─────────────────────────────────────
+' EXCEPTIONS
+'─────────────────────────────────────
+package "org.example.exception" {
+    class AccountNotFoundException {
+        + AccountNotFoundException(String message)
+    }
+    class InsufficientFundsException {
+        + InsufficientFundsException(String message)
+    }
+}
+
+RuntimeException <|-- AccountNotFoundException
+RuntimeException <|-- InsufficientFundsException
+
+'─────────────────────────────────────
+' UTILITIES
+'─────────────────────────────────────
+package "org.example.util" {
+    class InputValidator <<utility>> {
+        - InputValidator()
+        + {static} validateAccountId(String) : Long
+        + {static} validateAmount(String) : BigDecimal
+    }
+}
+
+package "org.example.config" {
+    class DatabaseConnection <<utility>> {
+        - {static} String URL
+        - {static} String USERNAME
+        - {static} String PASSWORD
+        + {static} getConnection() : Connection
+    }
+}
+
+'─────────────────────────────────────
+' DAO LAYER
+'─────────────────────────────────────
+package "org.example.dao" {
+    interface AccountDAO <<interface>> {
+        + save(Account, Connection) : void
+        + findById(Long) : Account
+        + findAll() : List<Account>
+        + findByIdForUpdate(Long, Connection) : Account
+        + updateBalance(Long, BigDecimal, Connection) : void
+    }
+
+    interface TransactionDAO <<interface>> {
+        + save(Transaction, Connection) : void
+        + findByAccountId(Long) : List<Transaction>
+    }
+}
+
+package "org.example.impl" {
+    class AccountDAOImpl {
+        - mapAccount(ResultSet) : Account
+        + save(Account, Connection) : void
+        + findById(Long) : Account
+        + findAll() : List<Account>
+        + findByIdForUpdate(Long, Connection) : Account
+        + updateBalance(Long, BigDecimal, Connection) : void
+    }
+
+    class TransactionDAOImpl {
+        - getNullableLong(ResultSet, String) : Long
+        + save(Transaction, Connection) : void
+        + findByAccountId(Long) : List<Transaction>
+    }
+}
+
+AccountDAO <|.. AccountDAOImpl
+TransactionDAO <|.. TransactionDAOImpl
+AccountDAOImpl ..> DatabaseConnection : uses
+TransactionDAOImpl ..> DatabaseConnection : uses
+AccountDAOImpl ..> Account : maps / returns
+TransactionDAOImpl ..> Transaction : maps / returns
+
+'─────────────────────────────────────
+' SERVICE LAYER
+'─────────────────────────────────────
+package "org.example.service" {
+    interface AccountService <<interface>> {
+        + createAccount(String, BigDecimal) : Account
+        + getBalance(Long) : BigDecimal
+        + getAllAccounts() : List<Account>
+    }
+
+    interface TransactionService <<interface>> {
+        + deposit(Long, BigDecimal) : void
+        + withdraw(Long, BigDecimal) : void
+        + transfer(Long, Long, BigDecimal) : void
+        + getTransactionHistory(Long) : List<Transaction>
+    }
+}
+
+class AccountServiceImpl {
+    - AccountDAO accountDAO
+    - TransactionDAO transactionDAO
+    + AccountServiceImpl(AccountDAO, TransactionDAO)
+    + createAccount(String, BigDecimal) : Account
+    + getBalance(Long) : BigDecimal
+    + getAllAccounts() : List<Account>
+}
+
+class TransactionServiceImpl {
+    - AccountDAO accountDAO
+    - TransactionDAO transactionDAO
+    + TransactionServiceImpl(AccountDAO, TransactionDAO)
+    + deposit(Long, BigDecimal) : void
+    + withdraw(Long, BigDecimal) : void
+    + transfer(Long, Long, BigDecimal) : void
+    + getTransactionHistory(Long) : List<Transaction>
+    - validateAmount(BigDecimal) : void
+    - validateBalance(BigDecimal) : void
+    - requireAccount(Long, Connection) : Account
+    - recordTransaction(Account, String, BigDecimal, BigDecimal, Long, String, Connection) : void
+}
+
+AccountService <|.. AccountServiceImpl
+TransactionService <|.. TransactionServiceImpl
+AccountServiceImpl --> AccountDAO : uses
+AccountServiceImpl --> TransactionDAO : uses
+TransactionServiceImpl --> AccountDAO : uses
+TransactionServiceImpl --> TransactionDAO : uses
+AccountServiceImpl ..> DatabaseConnection : uses
+TransactionServiceImpl ..> DatabaseConnection : uses
+AccountServiceImpl ..> AccountNotFoundException : throws
+TransactionServiceImpl ..> AccountNotFoundException : throws
+TransactionServiceImpl ..> InsufficientFundsException : throws
+
+'─────────────────────────────────────
+' UI / PRESENTATION
+'─────────────────────────────────────
+package "org.example.ui" {
+    class BankingConsole {
+        - AccountService accountService
+        - TransactionService transactionService
+        - Scanner scanner
+        + BankingConsole(AccountService, TransactionService)
+        + start() : void
+        - showMenu() : void
+        - createAccount() : void
+        - balanceInquiry() : void
+        - listAccounts() : void
+        - deposit() : void
+        - withdraw() : void
+        - transfer() : void
+        - transactionHistory() : void
+        - readAccountId(String) : Long
+        - readAmount(String) : BigDecimal
+    }
+}
+
+BankingConsole --> AccountService : uses
+BankingConsole --> TransactionService : uses
+BankingConsole ..> InputValidator : uses
+BankingConsole ..> AccountNotFoundException : catches
+BankingConsole ..> InsufficientFundsException : catches
+
+'─────────────────────────────────────
+' ENTRY POINT
+'─────────────────────────────────────
+package "org.example.app" {
+    class Main {
+        + {static} main(String[]) : void
+    }
+}
+
+Main ..> AccountDAOImpl : creates
+Main ..> TransactionDAOImpl : creates
+Main ..> AccountServiceImpl : creates
+Main ..> TransactionServiceImpl : creates
+Main ..> BankingConsole : creates
+
+@enduml

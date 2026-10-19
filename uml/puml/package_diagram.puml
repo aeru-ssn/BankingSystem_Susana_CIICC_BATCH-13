@@ -1,0 +1,74 @@
+﻿@startuml package_diagram
+title BankingSystem — Package / Component Diagram
+
+skinparam packageBackgroundColor #EEF4FF
+skinparam packageBorderColor #7799CC
+skinparam componentBackgroundColor #FAFAFA
+skinparam componentBorderColor #555555
+skinparam arrowColor #333333
+skinparam linetype ortho
+
+package "org.example.app" as app {
+    [Main]
+}
+
+package "org.example.ui" as ui {
+    [BankingConsole]
+}
+
+package "org.example.util" as util {
+    [InputValidator]
+}
+
+package "org.example.service\n(interfaces)" as service {
+    [AccountService]
+    [TransactionService]
+}
+
+package "org.example.impl" as impl {
+    [AccountServiceImpl]
+    [TransactionServiceImpl]
+    [AccountDAOImpl]
+    [TransactionDAOImpl]
+}
+
+package "org.example.dao\n(interfaces)" as dao {
+    [AccountDAO]
+    [TransactionDAO]
+}
+
+package "org.example.model" as model {
+    [Account]
+    [Transaction]
+}
+
+package "org.example.exception" as ex {
+    [AccountNotFoundException]
+    [InsufficientFundsException]
+}
+
+package "org.example.config" as cfg {
+    [DatabaseConnection]
+}
+
+database "MySQL\nBankingSystem_CIICC" as db
+
+app --> ui
+app --> impl
+
+ui --> service
+ui --> model
+ui --> ex
+ui --> util
+
+impl --> dao
+impl --> model
+impl --> cfg
+impl --> service
+
+dao --> model
+service --> model
+
+cfg --> db
+
+@enduml

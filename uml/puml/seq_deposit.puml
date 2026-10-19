@@ -1,0 +1,60 @@
+﻿@startuml seq_deposit
+title Deposit — Sequence Diagram
+
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #555555
+skinparam sequenceParticipantBackgroundColor #FAFAFA
+skinparam sequenceLifeLineBorderColor #888888
+skinparam sequenceGroupBackgroundColor #EEF4FF
+skinparam sequenceGroupBorderColor #7799CC
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFDE7
+
+actor       User
+participant "BankingConsole"       as Console
+participant "TransactionServiceImpl" as TService
+participant "AccountServiceImpl"   as AService
+participant "AccountDAOImpl"       as ADAO
+participant "TransactionDAOImpl"   as TDAO
+database    "MySQL"                as DB
+
+User -> Console : Select [4] Deposit
+Console -> Console : readAccountId("Enter Account ID")
+Console -> Console : readAmount("Enter deposit amount")
+Console -> TService : deposit(accountId, amount)
+
+TService -> TService : validateAmount(amount)
+TService -> DB : getConnection()
+TService -> DB : setAutoCommit(false)
+
+TService -> ADAO : findByIdForUpdate(accountId, conn)
+ADAO -> DB : SELECT * FROM accounts\nWHERE id = ? FOR UPDATE
+DB --> ADAO : Account row
+ADAO --> TService : Account
+
+TService -> TService : newBalance = balance + amount
+TService -> TService : validateBalance(newBalance)
+
+TService -> ADAO : updateBalance(accountId, newBalance, conn)
+ADAO -> DB : UPDATE accounts SET balance = ?
+DB --> ADAO : 1 row updated
+ADAO --> TService : return
+
+TService -> TDAO : save(Transaction[DEPOSIT], conn)
+TDAO -> DB : INSERT INTO transactions
+DB --> TDAO : ok
+TDAO --> TService : return
+
+TService -> DB : commit()
+TService --> Console : void
+
+Console -> AService : getBalance(accountId)
+AService -> ADAO : findById(accountId)
+ADAO -> DB : SELECT * FROM accounts WHERE id = ?
+DB --> ADAO : Account row
+ADAO --> AService : Account
+AService --> Console : BigDecimal balance
+
+Console --> User : "Deposit successful!\nNew Balance: PHP X"
+
+@enduml

@@ -1,0 +1,49 @@
+﻿@startuml seq_create_account
+title Create Account — Sequence Diagram
+
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #555555
+skinparam sequenceParticipantBackgroundColor #FAFAFA
+skinparam sequenceLifeLineBorderColor #888888
+skinparam sequenceGroupBackgroundColor #EEF4FF
+skinparam sequenceGroupBorderColor #7799CC
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFDE7
+
+actor       User
+participant "BankingConsole"    as Console
+participant "AccountServiceImpl"  as AService
+participant "AccountDAOImpl"    as ADAO
+participant "TransactionDAOImpl" as TDAO
+database    "MySQL"             as DB
+
+User -> Console : Select [1] Create Account
+Console -> Console : prompt "Enter Account Name"
+Console -> Console : readAmount("Enter Initial Deposit")
+Console -> AService : createAccount(name, initialDeposit)
+
+AService -> AService : validate name (not blank, ≤ 100 chars)
+AService -> AService : validate initialDeposit (≥ 0, ≤ 2 dp, ≤ max)
+AService -> AService : generate accountNumber\n"ACC-" + UUID.substring(0,12).toUpperCase()
+AService -> DB : getConnection()
+AService -> DB : setAutoCommit(false)
+
+AService -> ADAO : save(account, conn)
+ADAO -> DB : INSERT INTO accounts\n(account_number, account_name, balance)
+DB --> ADAO : generated id
+ADAO -> ADAO : account.setId(generated id)
+ADAO --> AService : return
+
+alt initialDeposit > 0
+    AService -> TDAO : save(Transaction[INITIAL_DEPOSIT], conn)
+    TDAO -> DB : INSERT INTO transactions\n(transaction_reference, account_id,\n transaction_type, amount, balance)
+    DB --> TDAO : ok
+    TDAO --> AService : return
+end
+
+AService -> DB : commit()
+AService --> Console : Account object
+
+Console --> User : "Account created successfully!"\nAccount ID | Account Number | Name | Balance
+
+@enduml
